@@ -193,11 +193,23 @@ Return ONLY valid JSON, no markdown, no explanation outside the JSON:
 }`;
 
   try {
-    const response = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
-      max_tokens: 2000,
-      messages: [{ role: "user", content: prompt }],
-    });
+    let response;
+    let lastErr: unknown;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        response = await anthropic.messages.create({
+          model: "claude-sonnet-4-6",
+          max_tokens: 2000,
+          messages: [{ role: "user", content: prompt }],
+        });
+        break;
+      } catch (e) {
+        lastErr = e;
+        if ((e as { status?: number })?.status !== 429) throw e;
+        await new Promise((r) => setTimeout(r, 1000 * 2 ** attempt));
+      }
+    }
+    if (!response) throw lastErr;
 
     const text = response.content[0].type === "text" ? response.content[0].text : "";
 
@@ -299,6 +311,8 @@ Return ONLY valid JSON, no markdown, no explanation outside the JSON:
     return NextResponse.json({ picks });
   } catch (err) {
     console.error(err);
-    return NextResponse.json({ error: "Recommendation failed. Make sure ANTHROPIC_API_KEY is set." }, { status: 500 });
+    const message = err instanceof Error ? err.message : "Unknown error";
+    const status = (err as { status?: number })?.status ?? 500;
+    return NextResponse.json({ error: `Recommendation failed: ${message}` }, { status });
   }
 }
