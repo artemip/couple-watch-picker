@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import { POSTER_BASE } from "@/lib/tmdb";
 import { useUser } from "@/components/providers";
@@ -12,6 +12,20 @@ const THUMB_LABELS: Record<number, string> = {
   [-1]: "Not for me",
   [-2]: "Disliked it",
 };
+
+const THUMB_GLYPH: Record<number, string> = {
+  2: "👍👍",
+  1: "👍",
+  [-1]: "👎",
+  [-2]: "👎👎",
+};
+
+interface TasteSummary {
+  artem: string;
+  alexa: string;
+  shared: string;
+  divergent: string;
+}
 
 
 interface Props {
@@ -31,6 +45,17 @@ export function HistoryClient({ initialEntries, titles, dbError }: Props) {
       const data = await res.json();
       setEntries(data.entries ?? []);
     } catch {}
+  }
+
+  async function deleteEntry(id: string) {
+    const prev = entries;
+    setEntries((e) => e.filter((x) => x.id !== id));
+    try {
+      const res = await fetch(`/api/history/${id}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed");
+    } catch {
+      setEntries(prev);
+    }
   }
 
   return (
@@ -55,6 +80,8 @@ export function HistoryClient({ initialEntries, titles, dbError }: Props) {
         </div>
       )}
 
+      {!dbError && entries.length > 0 && <TasteCard colors={colors} />}
+
       {entries.length === 0 && !dbError ? (
         <div className="rounded-2xl border border-white/8 bg-zinc-900 p-10 text-center">
           <p className="text-zinc-400 text-sm">No watch history yet.</p>
@@ -63,7 +90,12 @@ export function HistoryClient({ initialEntries, titles, dbError }: Props) {
       ) : (
         <div className="space-y-3">
           {entries.map((entry) => (
-            <HistoryCard key={entry.id} entry={entry} colors={colors} />
+            <HistoryCard
+              key={entry.id}
+              entry={entry}
+              colors={colors}
+              onDelete={() => deleteEntry(entry.id)}
+            />
           ))}
         </div>
       )}
@@ -83,16 +115,20 @@ export function HistoryClient({ initialEntries, titles, dbError }: Props) {
 function HistoryCard({
   entry,
   colors,
+  onDelete,
 }: {
   entry: HistoryEntryWithRatings;
   colors: { artem: string; alexa: string };
+  onDelete: () => void;
 }) {
   const [expanded, setExpanded] = useState(false);
+  const [confirmingDelete, setConfirmingDelete] = useState(false);
   const { title, ratings } = entry;
   const artemRating = ratings.find((r) => r.person === "artem");
   const alexaRating = ratings.find((r) => r.person === "alexa");
   const date = new Date(entry.watchedAt);
   const dateStr = date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const hasExtras = entry.notes || artemRating?.note || alexaRating?.note || artemRating?.wouldRewatch != null || alexaRating?.wouldRewatch != null;
 
   return (
     <div
@@ -113,15 +149,15 @@ function HistoryCard({
           <p className="text-xs text-zinc-500">
             {dateStr} · {entry.watchedBy === "both" ? "Together" : entry.watchedBy}
           </p>
-          <div className="flex gap-3 mt-1">
+          <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1">
             {artemRating?.score != null && (
               <span className="text-[10px] font-medium" style={{ color: colors.artem }}>
-                Artem: {THUMB_LABELS[artemRating.score] ?? artemRating.score}
+                Artem: {THUMB_GLYPH[artemRating.score] ?? ""} {THUMB_LABELS[artemRating.score] ?? artemRating.score}
               </span>
             )}
             {alexaRating?.score != null && (
               <span className="text-[10px] font-medium" style={{ color: colors.alexa }}>
-                Alexa: {THUMB_LABELS[alexaRating.score] ?? alexaRating.score}
+                Alexa: {THUMB_GLYPH[alexaRating.score] ?? ""} {THUMB_LABELS[alexaRating.score] ?? alexaRating.score}
               </span>
             )}
           </div>
@@ -133,7 +169,24 @@ function HistoryCard({
       </div>
 
       {expanded && (
-        <div className="px-3 pb-3 pt-1 border-t border-white/6 space-y-2">
+        <div
+          className="px-3 pb-3 pt-2 border-t border-white/6 space-y-2"
+          onClick={(e) => e.stopPropagation()}
+        >
+          {(artemRating?.wouldRewatch != null || alexaRating?.wouldRewatch != null) && (
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5">
+              {artemRating?.wouldRewatch != null && (
+                <span className="text-[10px]" style={{ color: colors.artem }}>
+                  Artem {artemRating.wouldRewatch ? "would rewatch" : "wouldn't rewatch"}
+                </span>
+              )}
+              {alexaRating?.wouldRewatch != null && (
+                <span className="text-[10px]" style={{ color: colors.alexa }}>
+                  Alexa {alexaRating.wouldRewatch ? "would rewatch" : "wouldn't rewatch"}
+                </span>
+              )}
+            </div>
+          )}
           {entry.notes && <p className="text-xs text-zinc-400 leading-relaxed">{entry.notes}</p>}
           {artemRating?.note && (
             <p className="text-xs text-zinc-500 leading-relaxed">
@@ -145,8 +198,105 @@ function HistoryCard({
               <span style={{ color: colors.alexa }}>Alexa:</span> {alexaRating.note}
             </p>
           )}
+          {!hasExtras && (
+            <p className="text-[11px] text-zinc-600 italic">No notes yet.</p>
+          )}
+          <div className="pt-1">
+            {confirmingDelete ? (
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] text-zinc-400">Remove from history?</span>
+                <button
+                  onClick={onDelete}
+                  className="rounded-full bg-red-500/15 text-red-400 border border-red-500/30 px-2.5 py-1 text-[11px] font-medium hover:bg-red-500/25"
+                >
+                  Yes, remove
+                </button>
+                <button
+                  onClick={() => setConfirmingDelete(false)}
+                  className="rounded-full border border-white/8 bg-white/5 text-zinc-400 px-2.5 py-1 text-[11px] font-medium hover:text-zinc-200"
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                onClick={() => setConfirmingDelete(true)}
+                className="text-[11px] text-zinc-500 hover:text-red-400 transition-colors"
+              >
+                Remove from history
+              </button>
+            )}
+          </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function TasteCard({ colors }: { colors: { artem: string; alexa: string } }) {
+  const [data, setData] = useState<{ summary: TasteSummary | null; ratedCount: number; message?: string } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/taste-summary")
+      .then((r) => r.json())
+      .then((d) => {
+        if (cancelled) return;
+        if (d.error) setError(d.error);
+        else setData(d);
+      })
+      .catch((e) => !cancelled && setError(e.message ?? "Failed to load"));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  if (error) return null;
+
+  if (!data) {
+    return (
+      <div className="mb-4 rounded-[20px] border border-white/8 bg-zinc-900/60 p-4 space-y-2">
+        <div className="h-3 w-32 rounded bg-white/5 animate-pulse" />
+        <div className="h-2 w-full rounded bg-white/5 animate-pulse" />
+        <div className="h-2 w-5/6 rounded bg-white/5 animate-pulse" />
+      </div>
+    );
+  }
+
+  if (!data.summary) {
+    return (
+      <div className="mb-4 rounded-[20px] border border-white/8 bg-zinc-900/60 p-4">
+        <p className="text-xs text-zinc-400">{data.message ?? "Add a few more ratings to unlock a taste summary."}</p>
+      </div>
+    );
+  }
+
+  const s = data.summary;
+  return (
+    <div className="mb-4 rounded-[20px] border border-white/8 bg-zinc-900/60 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xs font-semibold uppercase tracking-wider text-zinc-400">Your taste</h2>
+        <span className="text-[10px] text-zinc-600">{data.ratedCount} rated</span>
+      </div>
+      <div className="space-y-2.5 text-[13px] leading-relaxed">
+        <p>
+          <span className="font-semibold" style={{ color: colors.artem }}>Artem.</span>{" "}
+          <span className="text-zinc-300">{s.artem}</span>
+        </p>
+        <p>
+          <span className="font-semibold" style={{ color: colors.alexa }}>Alexa.</span>{" "}
+          <span className="text-zinc-300">{s.alexa}</span>
+        </p>
+        <p>
+          <span className="font-semibold text-zinc-200">Together.</span>{" "}
+          <span className="text-zinc-300">{s.shared}</span>
+        </p>
+        <p>
+          <span className="font-semibold text-zinc-200">Diverge.</span>{" "}
+          <span className="text-zinc-300">{s.divergent}</span>
+        </p>
+      </div>
     </div>
   );
 }
