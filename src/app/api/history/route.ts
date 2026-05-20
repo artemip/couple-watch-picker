@@ -3,11 +3,16 @@ import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 
 export async function GET() {
-  const entries = await prisma.watchHistory.findMany({
-    include: { title: true, ratings: true },
+  const rows = await prisma.watchHistory.findMany({
+    include: { title: { include: { ratings: true } } },
     orderBy: { watchedAt: "desc" },
     take: 100,
   });
+  const entries = rows.map(({ title, ...rest }) => ({
+    ...rest,
+    title,
+    ratings: title.ratings,
+  }));
   return NextResponse.json({ entries });
 }
 

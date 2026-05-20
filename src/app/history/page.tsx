@@ -7,10 +7,16 @@ export default async function HistoryPage() {
   try {
     const [entries, watchlistTitles] = await Promise.all([
       prisma.watchHistory.findMany({
-        include: { title: true, ratings: true },
+        include: { title: { include: { ratings: true } } },
         orderBy: { watchedAt: "desc" },
         take: 100,
-      }),
+      }).then((rows) =>
+        rows.map(({ title, ...rest }) => ({
+          ...rest,
+          title,
+          ratings: title.ratings,
+        })),
+      ),
       prisma.title.findMany({
         orderBy: { title: "asc" },
         select: { id: true, title: true, year: true, posterPath: true, type: true },
