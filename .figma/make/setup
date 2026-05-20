@@ -1,0 +1,20 @@
+#!/bin/bash
+set -e
+
+echo "Checking system dependencies..."
+
+# Verify Node.js is available
+if ! command -v node &>/dev/null; then
+  echo "Error: Node.js is not installed"
+  exit 1
+fi
+echo "Node.js $(node -v) found"
+
+# Verify pnpm is available
+if ! command -v pnpm &>/dev/null; then
+  echo "Error: pnpm is not installed"
+  exit 1
+fi
+echo "pnpm $(pnpm -v) found"
+
+echo "System dependencies verified."
