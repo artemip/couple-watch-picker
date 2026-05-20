@@ -1,0 +1,80 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ─── Core models ──────────────────────────────────────────────────────────────
+
+model Title {
+  id         String  @id @default(cuid())
+  tmdbId     Int     @unique
+  type       String  // "movie" | "tv"
+  title      String
+  year       Int?
+  posterPath String?
+  genres     String[]
+  runtime    Int?    // minutes for movies; episode length for TV
+  summary    String?
+  cast       String[]
+  directors  String[]
+  popularity Float?
+
+  watchlistEntries WatchlistEntry[]
+  watchHistory     WatchHistory[]
+  ratings          Rating[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// status: "active" | "not_tonight" | "vetoed" | "skip"
+model WatchlistEntry {
+  id      String @id @default(cuid())
+  title   Title  @relation(fields: [titleId], references: [id])
+  titleId String
+  status  String @default("active")
+
+  addedAt   DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+// watchedBy: "artem" | "alexa" | "both"
+model WatchHistory {
+  id         String   @id @default(cuid())
+  title      Title    @relation(fields: [titleId], references: [id])
+  titleId    String
+  watchedAt  DateTime @default(now())
+  watchedBy  String   @default("both")
+  together   Boolean  @default(true)
+  tags       String[]
+  notes      String?
+
+  ratings Rating[]
+
+  createdAt DateTime @default(now())
+}
+
+// person: "artem" | "alexa"
+// score: -2 | -1 | 1 | 2  (two thumbs down → two thumbs up)
+model Rating {
+  id           String @id @default(cuid())
+  title        Title  @relation(fields: [titleId], references: [id])
+  titleId      String
+  person       String
+  score        Int?
+  wouldRewatch Boolean?
+  tags         String[]
+  note         String?
+
+  watchHistory   WatchHistory? @relation(fields: [watchHistoryId], references: [id])
+  watchHistoryId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([titleId, person])
+}

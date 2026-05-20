@@ -1,26 +1,94 @@
 @import "tailwindcss";
 
-:root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
 @theme inline {
-  --color-background: var(--background);
-  --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-inter);
+  --font-mono: var(--font-mono-default);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* ─── Design tokens (Figma-inspired, dark theme) ─────────────────────────── */
+:root {
+  /* Spacing — 8px base unit */
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.5rem;    /* 24px */
+  --space-6: 2rem;      /* 32px */
+  --space-8: 3rem;      /* 48px */
+
+  /* Radius — pill-forward system */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 50px;
+  --radius-full: 9999px;
+
+  /* Typography — Inter variable, fine-grained weights */
+  --font-family-default: 'Inter', system-ui, sans-serif;
+  --font-weight-body: 400;
+  --font-weight-medium: 480;
+  --font-weight-semibold: 550;
+  --font-weight-bold: 650;
+
+  /* Semantic colors — dark canvas */
+  --color-bg-canvas:   #1E1E1E;
+  --color-bg-surface:  #2C2C2C;
+  --color-bg-elevated: #383838;
+  --color-bg-border:   #444444;
+  --color-text:        #FFFFFF;
+  --color-text-secondary: rgba(255,255,255,0.7);
+  --color-text-tertiary:  rgba(255,255,255,0.4);
+
+  /* Map Tailwind zinc scale to dark palette */
+  --color-zinc-950: #1E1E1E;
+  --color-zinc-900: #2C2C2C;
+  --color-zinc-800: #383838;
+  --color-zinc-700: #444444;
+  --color-zinc-600: #757575;
+  --color-zinc-500: #9e9e9e;
+  --color-zinc-400: rgba(255,255,255,0.7);
+  --color-zinc-300: rgba(255,255,255,0.85);
+  --color-zinc-50:  #FFFFFF;
+}
+
+/* ─── Reset ──────────────────────────────────────────────────────────────── */
+* {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+*::-webkit-scrollbar { display: none; }
+
+/* All interactive elements get pointer cursor */
+button, a, [role="button"], input[type="submit"], select, label[for] {
+  cursor: pointer;
+}
+
+html {
+  background-color: #1E1E1E;
 }
 
 body {
-  background: var(--background);
-  color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  background-color: #1E1E1E;
+  color: #FFFFFF;
+  font-family: 'Inter', system-ui, sans-serif;
+  font-weight: 400;
+  letter-spacing: -0.01em;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ─── Mobile-first touch targets ─────────────────────────────────────────── */
+@media (pointer: coarse) {
+  button, a, [role="button"] {
+    min-height: 44px;
+  }
+}
+
+/* ─── Safe area insets (iOS notch / home indicator) ──────────────────────── */
+.pb-safe {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom));
+}
+.pt-safe {
+  padding-top: max(0.5rem, env(safe-area-inset-top));
 }
